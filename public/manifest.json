@@ -1,7 +1,6 @@
 {
   "manifest_version": 3,
   "name": "Reeltowhatsapp",
-  "$schema": "https://json.schemastore.org/chrome-manifest.json",
   "version": "0.1.0",
   "description": "My Chrome Extension",
   "icons": {
@@ -13,22 +12,17 @@
   "background": {
     "service_worker": "background.js"
   },
+  "host_permissions": ["https://web.whatsapp.com/*", "https://*/*"],
   "action": {
     "default_title": "Reeltowhatsapp",
     "default_popup": "popup.html"
   },
-  "permissions": [
-    "storage"
-  ],
+  "permissions": ["storage", "activeTab", "tabs", "scripting"],
   "content_scripts": [
     {
-      "matches": [
-        "<all_urls>"
-      ],
+      "matches": ["<all_urls>"],
       "run_at": "document_idle",
-      "js": [
-        "contentScript.js"
-      ]
+      "js": ["contentScript.js"]
     }
   ]
 }

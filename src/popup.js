@@ -1,112 +1,51 @@
-'use strict';
+"use strict";
 
-import './popup.css';
+// Function to get the Instagram reel link from the current active tab
+function getReelLink(cb) {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const currentTab = tabs[0];
+    const reelLink = currentTab.url; // Get the current tab's URL
+    cb(reelLink);
+  });
+}
 
-(function() {
-  // We will make use of Storage API to get and store `count` value
-  // More information on Storage API can we found at
-  // https://developer.chrome.com/extensions/storage
+document.addEventListener("DOMContentLoaded", () => {
+  // Get the saved target chat and number from Chrome storage
+  chrome.storage.local.get(["targetChat", "targetNumber"], (data) => {
+    const targetChat = data.targetChat;
+    const targetNumber = data.targetNumber;
 
-  // To get storage access, we have to mention it in `permissions` property of manifest.json file
-  // More information on Permissions can we found at
-  // https://developer.chrome.com/extensions/declare_permissions
-  const counterStorage = {
-    get: cb => {
-      chrome.storage.sync.get(['count'], result => {
-        cb(result.count);
-      });
-    },
-    set: (value, cb) => {
-      chrome.storage.sync.set(
-        {
-          count: value,
-        },
-        () => {
-          cb();
-        }
-      );
-    },
-  };
+    // Set the saved values to the input fields
+    document.getElementById("targetChat").value = targetChat;
+    document.getElementById("targetNumber").value = targetNumber;
+    document.getElementById("share").innerText = `Share with ${targetChat}`;
+  });
+});
 
-  function setupCounter(initialValue = 0) {
-    document.getElementById('counter').innerHTML = initialValue;
+// Event listener for saving target chat and number
+document.getElementById("save").addEventListener("click", () => {
+  const targetNumber = document.getElementById("targetNumber").value;
+  const targetChat = document.getElementById("targetChat").value;
 
-    document.getElementById('incrementBtn').addEventListener('click', () => {
-      updateCounter({
-        type: 'INCREMENT',
-      });
-    });
+  // Save the values to Chrome storage
+  chrome.storage.local.set({ targetNumber, targetChat }, () => {
+    alert("Target chat and number saved!");
+  });
+});
 
-    document.getElementById('decrementBtn').addEventListener('click', () => {
-      updateCounter({
-        type: 'DECREMENT',
-      });
-    });
-  }
+// Event listener for the "share" button click
+document.getElementById("share").addEventListener("click", () => {
+  getReelLink((reelLink) => {
+    // Retrieve targetChat and targetNumber from Chrome storage
+    chrome.storage.local.get(["targetChat", "targetNumber"], (data) => {
+      const targetChat = data.targetChat; // Phone number
+      const targetNumber = data.targetNumber; // Contact name
 
-  function updateCounter({ type }) {
-    counterStorage.get(count => {
-      let newCount;
-
-      if (type === 'INCREMENT') {
-        newCount = count + 1;
-      } else if (type === 'DECREMENT') {
-        newCount = count - 1;
-      } else {
-        newCount = count;
-      }
-
-      counterStorage.set(newCount, () => {
-        document.getElementById('counter').innerHTML = newCount;
-
-        // Communicate with content script of
-        // active tab by sending a message
-        chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
-          const tab = tabs[0];
-
-          chrome.tabs.sendMessage(
-            tab.id,
-            {
-              type: 'COUNT',
-              payload: {
-                count: newCount,
-              },
-            },
-            response => {
-              console.log('Current count value passed to contentScript file');
-            }
-          );
-        });
+      // Send the reel link along with targetChat and targetNumber to the background script
+      chrome.runtime.sendMessage({
+        type: "SHARE_REEL",
+        payload: { reelLink, targetChat, targetNumber },
       });
     });
-  }
-
-  function restoreCounter() {
-    // Restore count value
-    counterStorage.get(count => {
-      if (typeof count === 'undefined') {
-        // Set counter value as 0
-        counterStorage.set(0, () => {
-          setupCounter(0);
-        });
-      } else {
-        setupCounter(count);
-      }
-    });
-  }
-
-  document.addEventListener('DOMContentLoaded', restoreCounter);
-
-  // Communicate with background file by sending a message
-  chrome.runtime.sendMessage(
-    {
-      type: 'GREETINGS',
-      payload: {
-        message: 'Hello, my name is Pop. I am from Popup.',
-      },
-    },
-    response => {
-      console.log(response.message);
-    }
-  );
-})();
+  });
+});
